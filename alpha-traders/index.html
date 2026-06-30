@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="expires" content="0">
+  <title>TRADING WAR ROOM — AI Agent System v25.7</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Pixel art logo grid */
+    .star-pixel { display:inline-block; width:6px; height:6px; background:var(--gold); margin:0 1px; }
+    .logo-row { display:flex; align-items:center; gap:2px; }
+
+    /* ── HUB LAYOUT (office-center · employees left · data right) ── */
+    #main { display:block !important; }
+    .hub-grid {
+      display:grid; gap:10px; align-items:start;
+      grid-template-columns:370px minmax(0,1fr) 300px;
+      transition:grid-template-columns .2s ease;
+    }
+    .hub-grid.no-left  { grid-template-columns:0 minmax(0,1fr) 300px; }
+    .hub-grid.no-right { grid-template-columns:370px minmax(0,1fr) 0; }
+    .hub-grid.no-left.no-right { grid-template-columns:0 minmax(0,1fr) 0; }
+    .hub-col { max-height:calc(100vh - 215px); overflow-y:auto; overflow-x:hidden; min-width:0; }
+    .hub-col.collapsed { display:none; }
+    .hub-col::-webkit-scrollbar { width:7px; } .hub-col::-webkit-scrollbar-thumb { background:#26324d; border-radius:4px; }
+    /* Phase F.2: pin each region to its grid track so hiding a side column with
+       display:none does NOT push the center office into the 0-width first track. */
+    #hub-left   { grid-column:1; }
+    .hub-center { grid-column:2; position:sticky; top:8px; min-width:0; }
+    #hub-right  { grid-column:3; }
+    .hub-office-head { display:flex; align-items:center; gap:8px; padding:6px 10px; border:1px solid var(--border);
+      border-bottom:none; border-radius:8px 8px 0 0; background:linear-gradient(90deg,rgba(45,226,230,.12),transparent); }
+    #hub-office-frame { width:100%; height:calc(100vh - 200px); min-height:580px; border:1px solid var(--border);
+      border-radius:0 0 8px 8px; background:#070a14; display:block; }
+    .hub-tab { position:absolute; top:50%; transform:translateY(-50%); z-index:30; width:18px; height:54px;
+      background:#141b30; border:1px solid var(--border); color:var(--cyan,#2de2e6); cursor:pointer;
+      font-size:11px; display:flex; align-items:center; justify-content:center; border-radius:5px; }
+    #hub-tab-left  { left:0; } #hub-tab-right { right:0; }
+    @media (max-width:1100px){ .hub-grid,.hub-grid.no-left,.hub-grid.no-right{ grid-template-columns:1fr; } .hub-center{position:static} #hub-office-frame{height:420px} .hub-col{max-height:none} }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<header id="header">
+  <div class="logo-block">
+    <!-- Pixel star logo -->
+    <div style="display:grid;grid-template-columns:repeat(5,8px);gap:1px;width:44px">
+      <div style="background:transparent"></div>
+      <div style="background:transparent"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:transparent"></div>
+      <div style="background:transparent"></div>
+      <div style="background:transparent"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:transparent"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:transparent"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:transparent"></div>
+      <div style="background:transparent"></div>
+      <div style="background:transparent"></div>
+      <div style="background:#ffd700;height:8px"></div>
+      <div style="background:transparent"></div>
+      <div style="background:transparent"></div>
+    </div>
+    <div>
+      <div class="logo-text">TRADING WAR ROOM</div>
+      <div class="logo-sub">AI MULTI-AGENT SYSTEM v2.0 — SMC+EW+FIB+RSI</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:20px;align-items:center">
+    <!-- Price tags in header -->
+    <div id="price-xau" class="price-tag">
+      <span class="sym">XAU/USD</span>
+      <span class="val">4571.00</span>
+    </div>
+    <div id="price-aud" class="price-tag">
+      <span class="sym">AUD/USD</span>
+      <span class="val">0.6452</span>
+    </div>
+    <div id="price-eur" class="price-tag">
+      <span class="sym">EUR/USD</span>
+      <span class="val">1.0853</span>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <!-- Phase F.4: lean nav — 4 destinations. BACKTEST/OFFICE/BOT live inside CONTROL (shortcuts) -->
+    <button class="hdr-btn" onclick="Modal.open('control')" title="主控室 — 用这个就行" style="background:var(--teal);color:#022;font-weight:bold">🎛 CONTROL</button>
+    <button class="hdr-btn" onclick="Modal.open('journal')" title="交易记录 + 知识库 KB" data-i18n="btn.journal">📓 数据</button>
+    <button class="hdr-btn" onclick="Modal.open('company')" title="公司总览 — 资金/团队/系统健康">📋 公司</button>
+    <button class="hdr-btn" onclick="Modal.open('settings')" data-i18n="btn.settings">⚙ SETTINGS</button>
+    <button class="hdr-btn" id="lang-toggle" onclick="I18n.toggle()" title="Toggle TH/EN">🇹🇭 TH</button>
+    <div class="live-indicator">
+      <div class="live-dot"></div>
+      <span id="live-status">INIT</span>
+    </div>
+    <div id="api-rate" style="display:none;font-size:6px;color:var(--gray);min-width:60px" title="Twelve Data rate: calls in last 60s (safe limit 5, hard limit 8)">API: 0/5</div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- ═══════════════════ ALERT BANNER ═══════════════════ -->
+<div id="alert-banner" class="alert-banner" style="display:none">
+  <!-- Filled by SignalGrade.renderBanner() -->
+</div>
+
+<!-- ═══════════════════ TICKER BAR ═══════════════════ -->
+<div id="ticker-bar">
+  <div class="ticker-item"><span class="ticker-sym">Loading...</span></div>
+</div>
+
+<!-- ═══════════════════ MAIN GRID ═══════════════════ -->
+<div id="main">
+
+  <!-- ═══════ PORTFOLIO SELECTOR (Phase 26: choose pairs to grow) ═══════ -->
+  <div class="team-panel" id="portfolio-panel" style="grid-column:1/-1">
+    <div class="team-header" style="background:linear-gradient(90deg,rgba(0,229,200,0.12),transparent)">
+      <div>
+        <div class="team-name">💼 正在构建的投资组合 — 选择要交易的货币对</div>
+        <div style="font-size:6px;color:var(--gray);margin-top:2px">点击即可开启/关闭 · 关闭的品种 = 不分析 · 不发送信号 · 不交易 · 不提醒</div>
+      </div>
+    </div>
+    <div id="portfolio-cards" style="display:flex;gap:8px;padding:10px;flex-wrap:wrap"></div>
+  </div>
+
+  <!-- ═══════ HUB: employees (left) · office (center) · data (right) ═══════ -->
+  <div class="hub-grid" id="hub-grid" style="position:relative">
+    <button class="hub-tab" id="hub-tab-left"  title="折叠/展开员工面板" onclick="toggleHub('left')">◀</button>
+    <button class="hub-tab" id="hub-tab-right" title="折叠/展开数据面板"  onclick="toggleHub('right')">▶</button>
+
+    <!-- LEFT: Employee Board / Trading Floor -->
+    <aside class="hub-col" id="hub-left">
+      <div class="team-panel" id="roster-panel">
+        <div class="team-header" style="background:linear-gradient(90deg,rgba(255,215,0,0.12),transparent)">
+          <div>
+            <div class="team-name">👔 TRADING FLOOR</div>
+            <div style="font-size:6px;color:var(--gray);margin-top:2px">1 组合/人 · 竞争出单 · 逐人 Audit 🎯</div>
+          </div>
+        </div>
+        <div id="trader-roster-body" style="padding:10px">
+          <div style="padding:20px;text-align:center;font-size:7px;color:var(--gray)">
+            <div class="pixel-loader"></div> Loading traders...
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER: live pixel office (Agent HQ) -->
+    <section class="hub-center" id="hub-center">
+      <div class="hub-office-head">
+        <span style="font-size:10px;color:var(--cyan,#2de2e6);font-weight:bold">🏢 ALPHA TRADERS HQ — Live Floor</span>
+        <span style="font-size:6px;color:var(--gray)">员工根据真实信号工作</span>
+        <button onclick="openAgentHQ()" title="全屏" style="margin-left:auto;background:#141b30;border:1px solid var(--border);color:var(--cyan,#2de2e6);font-size:9px;padding:2px 8px;border-radius:5px;cursor:pointer">⛶ 全屏</button>
+      </div>
+      <iframe id="hub-office-frame" title="Alpha Traders HQ" src="agent-hq.html?embed=1&v=89" loading="lazy"></iframe>
+    </section>
+
+    <!-- RIGHT: market data + team analysis + comms -->
+    <aside class="hub-col" id="hub-right">
+      <!-- GOLD TEAM -->
+      <div class="team-panel" id="gold-panel">
+        <div class="team-header gold-hdr">
+          <div><div class="team-name">🥇 GOLD TEAM</div>
+            <div style="font-size:6px;color:var(--gray);margin-top:2px">XAU/USD — Precious Metals</div></div>
+        </div>
+        <div id="gold-team-body">
+          <div style="padding:20px;text-align:center;font-size:7px;color:var(--gray)"><div class="pixel-loader"></div> Initializing Gold Team...</div>
+        </div>
+      </div>
+      <!-- CURRENCY TEAM -->
+      <div class="team-panel" id="currency-panel" style="margin-top:10px">
+        <div class="team-header fx-hdr">
+          <div><div class="team-name fx">💱 CURRENCY TEAM</div>
+            <div style="font-size:6px;color:var(--gray);margin-top:2px">AUD/USD + EUR/USD — FX Desk</div></div>
+        </div>
+        <div id="currency-team-body">
+          <div style="padding:20px;text-align:center;font-size:7px;color:var(--gray)"><div class="pixel-loader"></div> Initializing Currency Team...</div>
+        </div>
+      </div>
+      <!-- ACTIVITY LOG -->
+      <div id="log-panel" style="margin-top:10px">
+        <div class="log-header">📡 AGENT COMMS <span style="margin-left:auto;font-size:6px" class="updating">LIVE</span></div>
+        <div class="log-body" id="log-body"></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ═══════ COMMANDER PANEL (hidden — superseded by EMPLOYEE BOARD) ═══════ -->
+  <div id="commander-panel" class="px-box" style="display:none">
+    <div class="cmd-header">
+      <div>
+        <div class="cmd-title">👑 COMMANDER — GENERAL CONTROL</div>
+        <div style="font-size:6px;color:var(--gray);margin-top:2px">Aggregates all team signals → Final trade recommendation</div>
+      </div>
+      <div style="font-size:7px;color:var(--purple)">ORCHESTRATOR</div>
+    </div>
+    <div id="commander-body">
+      <div style="padding:20px;text-align:center;font-size:7px;color:var(--gray)">
+        <div class="pixel-loader"></div> Waiting for team reports...
+      </div>
+    </div>
+  </div>
+
+
+</div><!-- #main -->
+
+<!-- ═══════════════════ SETTINGS MODAL ═══════════════════ -->
+<div id="modal-settings" class="modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">⚙ SETTINGS — Telegram &amp; Alerts</div>
+      <button class="modal-close" onclick="Modal.close()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">🤖 Bot Token <span class="hint">(来自 @BotFather)</span></label>
+        <input id="s-token" type="text" class="form-input" placeholder="1234567890:ABCdef..." spellcheck="false">
+      </div>
+      <div class="form-group">
+        <label class="form-label">💬 Chat ID <span class="hint">(发送 /start 给 bot 后在 @userinfobot 查看)</span></label>
+        <input id="s-chatid" type="text" class="form-input" placeholder="-100... 或 123456789" spellcheck="false">
+      </div>
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label class="form-label">⭐ 仅发送最低等级</label>
+          <select id="s-mingrade" class="form-input">
+            <option value="S+">仅 S+ (只有最佳机会)</option>
+            <option value="A" selected>A 及以上（推荐）</option>
+            <option value="B">B 及以上</option>
+            <option value="C">C 及以上（发送频繁）</option>
+          </select>
+        </div>
+        <div class="form-group flex-1">
+          <label class="form-label">⏱ 冷却时间（分钟）</label>
+          <input id="s-cooldown" type="number" class="form-input" min="1" max="60" value="5">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-checkbox">
+          <input id="s-on" type="checkbox"> 开启 Telegram notifications
+        </label>
+        <label class="form-checkbox">
+          <input id="s-sound" type="checkbox" checked> 开启提醒声音
+        </label>
+      </div>
+      <div class="form-row">
+        <label class="form-checkbox">
+          <input id="s-keepalive" type="checkbox" checked> 🔋 保持唤醒（防止标签页休眠）
+        </label>
+        <button class="btn btn-secondary" style="padding:4px 8px;font-size:6px" onclick="KeepAlive.requestNotifPerm().then(p => { const s = document.getElementById('s-status'); s.textContent = '🔔 Notification: ' + p; s.style.color = p === 'granted' ? 'var(--green)' : 'var(--orange)'; })">🔔 请求通知权限</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">🎯 交易模式 <span class="hint">(根据风格调整 TP/SL)</span></label>
+        <select id="s-trademode" class="form-input">
+          <option value="scalp">⚡ Scalp — 短止损/止盈，快进快出（15-60分钟）</option>
+          <option value="swing" selected>🌊 Swing — 持仓 4-12 小时 (default)</option>
+          <option value="position">🏔 Position — 隔夜持仓，寻找大行情</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label class="form-label">💰 Account Size <span class="hint">(USD)</span></label>
+          <input id="s-accountsize" type="number" class="form-input" min="10" max="1000000" step="10" value="30">
+        </div>
+        <div class="form-group flex-1">
+          <label class="form-label">⚠️ Risk per Trade <span class="hint">(%)</span></label>
+          <input id="s-risk" type="number" class="form-input" min="0.5" max="10" step="0.5" value="2">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">🎯 品种过滤 <span class="hint">(仅向勾选的品种发送 Telegram)</span></label>
+        <div style="display:flex;gap:14px;padding:6px 4px;flex-wrap:wrap">
+          <label class="form-checkbox"><input id="s-enableXAU" type="checkbox" checked> 🥇 XAUUSD</label>
+          <label class="form-checkbox"><input id="s-enableAUD" type="checkbox" checked> 🇦🇺 AUDUSD</label>
+          <label class="form-checkbox"><input id="s-enableEUR" type="checkbox" checked> 🇪🇺 EURUSD</label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-checkbox" style="font-size:8px">
+          <input id="s-tradeWithoutKB" type="checkbox"> 🚀 即使 KB 为空也出单 <span class="hint">(跳过门槛 "KB 尚未盈利 / 胜率&lt;50%")</span>
+        </label>
+        <div style="font-size:6px;color:var(--orange);line-height:1.5;padding:2px 4px">
+          ⚠️ 通常系统不会交易直到 KB 有胜率记录（防爆仓）。开启此选项 = 信任实时 conf 直接出单 — 适合刚开始/Demo 为 KB 积累数据 · 评级将只根据 conf 计算
+        </div>
+      </div>
+
+      <!-- 🔧 ADVANCED (collapsed — most users never need these) -->
+      <details style="margin:8px 0;border:1px dashed var(--gray);border-radius:5px;padding:4px 8px">
+        <summary style="cursor:pointer;font-size:8px;color:var(--gray)">🔧 高级设置 (Adaptive AI · ADX Gate · Min Weight) — 点击展开</summary>
+        <div style="margin-top:6px">
+          <!-- Phase 19: Adaptive AI -->
+          <div class="form-group" style="border:1px solid var(--purple);padding:6px 8px;background:rgba(120,80,255,0.06)">
+            <label class="form-label" style="color:var(--purple)">🧠 ADAPTIVE AI (Phase 19)</label>
+            <label class="form-checkbox" style="display:block;margin:4px 0">
+              <input id="s-recency" type="checkbox"> 🕐 近期学习 — 让最近的交易更重要（适应市场变化）
+            </label>
+            <label class="form-checkbox" style="display:block;margin:4px 0">
+              <input id="s-autoapply" type="checkbox"> 🤖 自动应用策略 — 每 100 笔交易自动调整 agent/品种（无需手动确认）
+            </label>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label class="form-label">📈 ADX Gate <span class="hint">(0=关闭, 20=趋势市场)</span></label>
+              <input id="s-adxgate" type="number" class="form-input" min="0" max="50" value="20">
+            </div>
+            <div class="form-group flex-1">
+              <label class="form-label">🎚 Min Agent Weight <span class="hint">(0.5 = 屏蔽 KB 评为差的 agent)</span></label>
+              <input id="s-minweight" type="number" class="form-input" min="0.2" max="1.0" step="0.1" value="0.5">
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div id="s-status" class="form-status"></div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="Modal.testTelegram()">🧪 测试发送</button>
+        <button class="btn btn-secondary" onclick="Telegram.sendDailyNews().then(r => { const s = document.getElementById('s-status'); s.textContent = r?.ok ? '✓ 今日新闻已发送' : '✗ ' + (r?.msg || 'error'); s.style.color = r?.ok ? 'var(--green)' : 'var(--red)'; })">📰 发送今日新闻</button>
+        <button class="btn btn-primary" onclick="Modal.saveSettings()">💾 保存</button>
+      </div>
+      <div class="px-divider"></div>
+      <div style="font-size:8px;color:var(--gold);margin:10px 0 6px">💹 价格源（市场实时报价）</div>
+
+      <div class="form-group">
+        <label class="form-label">📡 API Provider</label>
+        <select id="s-provider" class="form-input">
+          <option value="ea_bridge">🤖 MT5 EA Bridge（经纪商实时 — 最佳，需开启 MT5）</option>
+          <option value="twelvedata">Twelve Data（免费 800次/天 — 需要 key）</option>
+          <option value="frankfurter">🇪🇺 Frankfurter（外汇免费 — 无黄金）</option>
+          <option value="yahoo">📊 Yahoo Finance（可能被 CORS 阻止）</option>
+          <option value="oanda">🥇 OANDA Demo（免费无限制 — 经纪商级）</option>
+        </select>
+      </div>
+
+      <div id="oanda-config" style="border-left:2px solid var(--green);padding:6px 8px;margin-bottom:10px;background:rgba(0,255,65,0.05)">
+        <div style="font-size:7px;color:var(--green);margin-bottom:4px">🥇 OANDA Demo Setup</div>
+        <div class="form-group">
+          <label class="form-label">🔑 OANDA API Token <span class="hint">(Manage API Access)</span></label>
+          <input id="s-oandatoken" type="text" class="form-input" placeholder="abc...-..." spellcheck="false">
+        </div>
+        <div class="form-group">
+          <label class="form-label">💼 Account ID <span class="hint">(101-xxx-xxxxxxx-xxx)</span></label>
+          <input id="s-oandaacct" type="text" class="form-input" placeholder="101-001-12345678-001" spellcheck="false">
+        </div>
+        <div style="font-size:6px;color:var(--gray);line-height:1.6">
+          <b style="color:var(--gold)">📘 如何获取:</b><br>
+          1. 注册 <a href="https://www.oanda.com/forex-trading/account/register/demo" target="_blank" style="color:var(--teal)">oanda.com/demo</a><br>
+          2. Login → My Services → <b>Manage API Access</b> → Generate Token<br>
+          3. 在 Account Statement 中查看 Account ID
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">🔑 Twelve Data API Key <span class="hint">(如果使用 Twelve Data)</span></label>
+        <input id="s-pricekey" type="text" class="form-input" placeholder="abc123def456..." spellcheck="false">
+      </div>
+      <div class="form-row">
+        <label class="form-checkbox flex-1">
+          <input id="s-pricefeed" type="checkbox"> 开启实时价格 (Real prices)
+        </label>
+        <div class="form-group flex-1" style="margin:0">
+          <label class="form-label">⏱ 刷新间隔 (秒 — EA Bridge ≥15, 其他 ≥60)</label>
+          <input id="s-pricerefresh" type="number" class="form-input" min="15" max="600" value="120">
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:6px">
+        <button class="btn btn-secondary" onclick="Modal.testPriceFeed()">🧪 测试获取价格</button>
+        <button class="btn btn-primary" onclick="Modal.enableScalpTest()" title="One-click: EA Bridge + Scalp mode + Gold focus">⚡ Scalp 测试（黄金）</button>
+      </div>
+
+      <div class="px-divider"></div>
+      <div style="font-size:8px;color:var(--gold);margin:10px 0 6px">🤖 MT5 机器人桥接（连接 EA → 网页）</div>
+      <div class="form-group">
+        <label class="form-label">🔗 Bot Bridge URL <span class="hint">(Apps Script /exec URL)</span></label>
+        <input id="s-botbridge" type="text" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" spellcheck="false">
+      </div>
+      <div style="font-size:6px;color:var(--gray);line-height:1.6;padding:0 4px 8px">
+        <b style="color:var(--gold)">📘 设置方法:</b><br>
+        1. 打开 <a href="https://script.google.com" target="_blank" style="color:var(--teal)">script.google.com</a> → New project<br>
+        2. 复制代码从 <code>mt5/BridgeCode.gs</code> 粘贴到<br>
+        3. Deploy → New deployment → Web app (Execute as: Me, Access: Anyone)<br>
+        4. 将 URL 填入 EA 参数和此输入框
+      </div>
+
+      <!-- ═══════ Phase 26: GEMINI AI brain (Gemini / Groq, server-side key) ═══════ -->
+      <div style="font-size:8px;color:var(--teal);margin:10px 0 6px">🧠 Gemini AI 大脑（策略部 + 秘书 · 可选 provider）</div>
+      <div class="form-group">
+        <label class="form-label">🌐 Provider</label>
+        <select id="s-aiprovider" class="form-input" onchange="AIBridge._uiProviderChange()">
+          <option value="groq">Groq（真正免费 · 推荐）</option>
+          <option value="gemini">Google Gemini</option>
+        </select>
+        <label class="form-label" style="margin-top:8px">🔑 API Key <span class="hint">(保存在服务器端，不在浏览器中)</span></label>
+        <input id="s-aikey" type="password" class="form-input" placeholder="粘贴 API key 后点击保存" spellcheck="false" autocomplete="off">
+        <label class="form-label" style="margin-top:8px">🤖 模型</label>
+        <select id="s-aimodel" class="form-input">
+          <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile（推荐）</option>
+          <option value="llama-3.1-8b-instant">llama-3.1-8b-instant（快速）</option>
+          <option value="openai/gpt-oss-20b">openai/gpt-oss-20b</option>
+        </select>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+          <button class="btn btn-primary" style="border-color:var(--teal);color:var(--teal);font-size:8px" onclick="AIBridge._uiSave()">💾 保存到服务器</button>
+          <button class="btn btn-secondary" style="font-size:8px" onclick="AIBridge._uiTest()">🧪 测试</button>
+          <button class="btn btn-secondary" style="font-size:8px" onclick="AIBridge._uiStatus()">🔄 检查状态</button>
+        </div>
+        <div id="ai-key-status" style="font-size:7px;margin-top:6px;color:var(--gray)">⚪ 点击检查状态查看是否已有 key</div>
+      </div>
+      <div id="ai-key-hint" style="font-size:6px;color:var(--gray);line-height:1.6;padding:0 4px 8px">
+        <b style="color:var(--teal)">📘 获取免费 key:</b> <a href="https://console.groq.com/keys" target="_blank" style="color:var(--teal)">console.groq.com/keys</a> → Create API Key<br>
+        ⚠️ 需要 <b>重新部署 Apps Script 为新版本</b>，更新 BridgeCode.gs 后此按钮才能使用
+      </div>
+
+      <!-- Phase 13: Web AI → EA signal pipeline -->
+      <div class="form-row" style="padding:6px;border:1px solid var(--purple);background:rgba(120,80,255,0.08);margin-top:6px">
+        <label class="form-checkbox flex-1" style="font-size:7px">
+          <input id="s-web-ai-signals" type="checkbox">
+          🧠 <b>Web AI 发送信号给 EA</b> 自动交易（仅 A+ 等级）
+        </label>
+      </div>
+      <div style="font-size:6px;color:var(--gray);line-height:1.6;padding:0 4px 8px">
+        ⚠️ 需要开启 <code>AcceptWebSignals = true</code> EA 参数中也要开启<br>
+        当网页 11 个 AI agents 发现 A 或 S+ 级别 setup 时 → 立即发送指令给 EA 交易（跳过冷却）
+      </div>
+
+      <div class="help-box">
+        <div style="font-size:7px;color:var(--gold);margin-bottom:4px">📘 如何设置 Telegram Bot:</div>
+        <ol style="font-size:6px;color:var(--white);line-height:1.8;padding-left:14px">
+          <li>打开 Telegram → 搜索 <b>@BotFather</b> → 发送 <code>/newbot</code></li>
+          <li>设置名字 + username → 获得 <b>Bot Token</b> (1234:ABC...) 粘贴到上方输入框</li>
+          <li>搜索你的 bot → 点击 <code>/start</code> 发送给它</li>
+          <li>搜索 <b>@userinfobot</b> → 点击 <code>/start</code> → 将获得 <b>Chat ID</b></li>
+          <li>填入 Chat ID → 勾选 "开启 Telegram" → 点击 测试发送</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ BACKTEST MODAL ═══════════════════ -->
+<div id="modal-backtest" class="modal" style="display:none">
+  <div class="modal-box modal-xl">
+    <div class="modal-header">
+      <div class="modal-title">🔬 BACKTEST — 回测 — 在历史数据上测试策略</div>
+      <button class="modal-close" onclick="Modal.close()">✕</button>
+    </div>
+    <div class="modal-body" id="backtest-body">
+      <div style="padding:20px;text-align:center;font-size:7px;color:var(--gray)">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ JOURNAL MODAL ═══════════════════ -->
+<div id="modal-journal" class="modal" style="display:none">
+  <div class="modal-box modal-xl">
+    <div class="modal-header">
+      <div class="modal-title">📓 TRADE JOURNAL — 信号历史 + 交易结果</div>
+      <button class="modal-close" onclick="Modal.close()">✕</button>
+    </div>
+    <div class="modal-body" id="journal-body">
+      <div style="padding:20px;text-align:center;font-size:7px;color:var(--gray)">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ HELP MODAL ═══════════════════ -->
+<div id="modal-help" class="modal" style="display:none">
+  <div class="modal-box modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">❓ HELP — 如何阅读此页面</div>
+      <button class="modal-close" onclick="Modal.close()">✕</button>
+    </div>
+    <div class="modal-body help-content">
+
+      <div class="help-section">
+        <div class="help-title">🚨 ALERT BANNER（顶部绿色/红色条）</div>
+        <div class="help-text">将 <b>自动弹出</b> 当出现 A 或 S+ 级信号时，并有声音提醒。此条出现 = <b>值得入场的机会</b>！ 显示完整的入场/止损/止盈</div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">🏆 GRADE BADGE（信号评级）</div>
+        <div class="help-row"><span class="badge-demo" style="color:#ff00ff;border-color:#ff00ff">S+</span> 88–100 — 最佳信号 所有团队一致 + 极高置信度</div>
+        <div class="help-row"><span class="badge-demo" style="color:#00ff41;border-color:#00ff41">A</span> 80–87 — 强信号，可以入场</div>
+        <div class="help-row"><span class="badge-demo" style="color:#ffe600;border-color:#ffe600">B</span> 65–79 — 不错，但等待进一步确认</div>
+        <div class="help-row"><span class="badge-demo" style="color:#ff8c00;border-color:#ff8c00">C</span> 50–64 — 一般，不推荐</div>
+        <div class="help-row"><span class="badge-demo" style="color:#555;border-color:#555">D</span> &lt;50 — 不要交易</div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">🥇 GOLD TEAM / 💱 CURRENCY TEAM</div>
+        <div class="help-text">每个团队有 Head Agent（主管） + 4 Analysts + News Agent</div>
+        <ul class="help-list">
+          <li><b>⚡ SMC Analyst</b> — 分析 结构/BOS/订单块/FVG (公允价值缺口)</li>
+          <li><b>🌊 Elliott Wave</b> — 数波浪 1-5 + 修正浪 (Wave 3 最佳)</li>
+          <li><b>📐 Fibonacci</b> — 寻找黄金区域 (0.618), TP/SL 从 fib extension</li>
+          <li><b>📊 RSI/Value</b> — RSI, ADX (趋势强度), 背离, 成交量分布 (POC/VAH/VAL)</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">📰 新闻 Agent — 阅读方法</div>
+        <div class="help-row"><span class="impact impact-high"></span> <b>红色</b> = 高影响 (NFP, CPI, 利率决议) — 前后 30 分钟避免交易</div>
+        <div class="help-row"><span class="impact impact-med"></span> <b>黄色</b> = 中等影响 (PMI, Retail Sales)</div>
+        <div class="help-row"><span class="impact impact-low"></span> <b>绿色</b> = 低影响 (Speeches, minor data)</div>
+        <div class="help-text">▲ = 利多消息 / ▼ = 利空消息 / ● = 中性</div>
+        <div class="help-text" style="color:var(--yellow);margin-top:4px">⚠️ 如果看到 <b>"Event within 1h!"</b> = 禁止下单！ 等新闻发布后再说</div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">👑 COMMANDER PANEL</div>
+        <ul class="help-list">
+          <li><b>FINAL SIGNAL</b> — ▲ BUY / ▼ SELL / ⏸ WAIT 伴随最佳 pair</li>
+          <li><b>Entry</b> — 入场价, <b>SL</b> — Stop Loss, <b>TP1/TP2</b> — Take Profit</li>
+          <li><b>R:R</b> — Risk:Reward ratio (R:R 越高越划算)</li>
+          <li><b>Position</b> — 建议 risking balance 的 %</li>
+          <li><b>Analyst Votes</b> — ▲ = agent 投票 buy / ▼ = sell / — = neutral</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">🎯 推荐工作流程</div>
+        <ol class="help-list">
+          <li>打开网页放在 background</li>
+          <li>等待 <b>Alert Banner</b> 弹出 + 提醒声音</li>
+          <li>检查 <b>Grade</b> 必须 A 及以上</li>
+          <li>查看 <b>Commander Panel</b> 找 Entry/SL/TP</li>
+          <li>检查 <b>News Agent</b> 1h 内没有 event</li>
+          <li>按照自己的风险管理下单</li>
+        </ol>
+      </div>
+
+      <div class="help-section" style="border-color:var(--red)">
+        <div class="help-title" style="color:var(--red)">⚠️ DISCLAIMER</div>
+        <div class="help-text">本系统是 <b>AI analysis tool</b> — 用于辅助决策，不是 financial advice。 市场有风险，你必须管理自己的 risk。 建议先在 demo account 测试</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ OFFICE MODAL ═══════════════════ -->
+<div id="modal-office" class="modal" style="display:none">
+  <div class="modal-box modal-xl" style="max-width:760px;width:94vw;max-height:94vh;padding:0;overflow:hidden">
+    <div class="modal-header" style="padding:8px 12px">
+      <div class="modal-title">🏢 OFFICE HQ</div>
+      <button class="modal-close" onclick="Modal.close()">✕</button>
+    </div>
+    <div id="office-body" style="max-height:86vh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ COMPANY MODAL ═══════════════════ -->
+<div id="modal-company" class="modal" style="display:none">
+  <div class="modal-box modal-xl" style="max-width:1200px;width:96vw;max-height:94vh">
+    <div class="modal-header">
+      <div class="modal-title">🏢 TRADING WAR ROOM CORP — Personal AI Trading Firm</div>
+      <button class="modal-close" onclick="Modal.close()">✕</button>
+    </div>
+    <div class="modal-body" id="company-body" style="max-height:86vh;overflow-y:auto">
+      <div style="padding:20px;text-align:center;font-size:7px;color:var(--gray)">Loading company...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ BOT STATUS MODAL ═══════════════════ -->
+<div id="modal-botstatus" class="modal" style="display:none">
+  <div class="modal-box modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">🤖 MT5 BOT STATUS — Live from EA</div>
+      <button class="modal-close" onclick="Modal.close()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="bot-status-body">
+        <div style="padding:20px;text-align:center;font-size:7px;color:var(--gray)">
+          ⏳ Waiting for data from MT5 EA...<br><br>
+          如果看不到数据: 检查 <b>SETTINGS → Bot Bridge URL</b> 并确认 EA 在线
+        </div>
+      </div>
+      <div class="help-box" style="margin-top:12px">
+        <div style="font-size:7px;color:var(--gold);margin-bottom:4px">📘 首次设置方法:</div>
+        <ol style="font-size:6px;color:var(--white);line-height:1.8;padding-left:14px">
+          <li>打开 <a href="https://script.google.com" target="_blank" style="color:var(--teal)">script.google.com</a> → New project</li>
+          <li>Copy <code>mt5/BridgeCode.gs</code> → Paste → Save</li>
+          <li>Deploy → New deployment → Web app (Execute: Me, Access: Anyone) → Authorize</li>
+          <li>Copy <b>/exec URL</b> → 填入 EA Input <code>WebhookURL</code> 和 SETTINGS → Bot Bridge URL</li>
+          <li>MT5 → Tools → Options → Expert Advisors → ✅ Allow WebRequest + add <code>https://script.google.com</code> 和 <code>https://script.googleusercontent.com</code></li>
+          <li>Restart EA → 数据将每 60 秒更新</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ CONTROL (Cockpit — one place for daily use) ═══════════════════ -->
+<div id="modal-control" class="modal" style="display:none">
+  <div class="modal-box modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">🎛 CONTROL — 主控室</div>
+      <button class="modal-close" onclick="Modal.close()">✕</button>
+    </div>
+    <div class="modal-body" id="control-body">
+      <div style="padding:20px;text-align:center;font-size:7px;color:var(--gray)">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ GEMINI COACH ═══════════════════ -->
+<div id="modal-gemini" class="modal" style="display:none">
+  <div class="modal-box modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">🧠 GEMINI — 主管教练（自动发展团队）</div>
+      <button class="modal-close" onclick="Modal.close()">✕</button>
+    </div>
+    <div class="modal-body" id="gemini-body">
+      <div style="padding:20px;text-align:center;font-size:7px;color:var(--gray)">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ FOOTER NOTE ═══════════════════ -->
+<div style="text-align:center;font-size:6px;color:var(--gray);padding:10px;border-top:1px solid var(--border)">
+  ⚠️ For educational &amp; research purposes only. Not financial advice. Always manage your own risk. |
+  Agents: SMC • Elliott Wave • Fibonacci • RSI/Value • News | Teams: Gold (XAUUSD) • Currency (AUDUSD, EURUSD)
+</div>
+
+<!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+<script src="js/i18n.js?v=88"></script>
+<script src="js/market.js?v=88"></script>
+<script src="js/agents.js?v=88"></script>
+<script src="js/ui.js?v=88"></script>
+<script src="js/extras.js?v=88"></script>
+<script src="js/ai-bridge.js?v=88"></script>
+<script src="js/gemini.js?v=88"></script>
+<script src="js/portfolio.js?v=88"></script>
+<script src="js/sprite-slicer.js?v=88"></script>
+<script src="js/backtest.js?v=88"></script>
+<script src="js/app.js?v=88"></script>
+
+<!-- ═══════════════════ AGENT HQ — full-screen live pixel office (iframe) ═══════════════════ -->
+<div id="agenthq-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#070a14">
+  <button onclick="closeAgentHQ()" title="关闭 (Esc)"
+    style="position:absolute;top:12px;right:16px;z-index:10000;background:#0d1322;border:1px solid #2de2e6;
+           color:#2de2e6;font-family:monospace;font-size:13px;padding:5px 12px;border-radius:7px;cursor:pointer">✕ 关闭</button>
+  <iframe id="agenthq-frame" title="Agent HQ" style="width:100%;height:100%;border:none;display:block"></iframe>
+</div>
+<script>
+  function openAgentHQ() {
+    const ov = document.getElementById('agenthq-overlay');
+    const fr = document.getElementById('agenthq-frame');
+    if (!fr.src) fr.src = 'agent-hq.html?v=88';   // load once; data syncs live from parent
+    ov.style.display = 'block';
+  }
+  function closeAgentHQ() { document.getElementById('agenthq-overlay').style.display = 'none'; }
+  // collapse/expand the hub side panels (employees ◀ / data ▶)
+  function _setHub(side, off) {
+    const grid = document.getElementById('hub-grid');
+    const col  = document.getElementById(side === 'left' ? 'hub-left' : 'hub-right');
+    const tab  = document.getElementById(side === 'left' ? 'hub-tab-left' : 'hub-tab-right');
+    const cls  = side === 'left' ? 'no-left' : 'no-right';
+    grid.classList.toggle(cls, off);
+    if (col) col.classList.toggle('collapsed', off);
+    if (tab) tab.textContent = off ? (side === 'left' ? '▶' : '◀') : (side === 'left' ? '◀' : '▶');
+    try { localStorage.setItem('twr_hub_' + side, off ? '1' : '0'); } catch (e) {}
+  }
+  function toggleHub(side) {
+    const grid = document.getElementById('hub-grid');
+    const cls  = side === 'left' ? 'no-left' : 'no-right';
+    _setHub(side, !grid.classList.contains(cls));   // flip current state
+  }
+  // Phase F: LEAN by default — side columns collapsed unless the user expanded them before.
+  function _applyHubState() {
+    ['left', 'right'].forEach(side => {
+      let off; try { const v = localStorage.getItem('twr_hub_' + side); off = (v === null) ? true : v === '1'; } catch (e) { off = true; }
+      _setHub(side, off);
+    });
+  }
+  _applyHubState();
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('agenthq-overlay').style.display === 'block') closeAgentHQ();
+  });
+</script>
+
+</body>
+</html>
